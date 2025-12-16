@@ -1,0 +1,40 @@
+{
+  "name": "orihost-farmer",
+  "version": "1.0.0",
+  "description": "Simple Node.js script to send requests to Orihost panel",
+  "main": "index.js",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "encrypt": "node encrypt-cookies.js",
+    "security": "node prebuild-security.js",
+    "test-webhook": "node test-webhook.js",
+    "pm2": "pm2 start index.js --name orihost-farmer",
+    "pm2-stop": "pm2 stop orihost-farmer",
+    "pm2-logs": "pm2 logs orihost-farmer"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^16.6.1",
+    "javascript-obfuscator": "^5.1.0",
+    "koa": "^2.14.2",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^12.0.1",
+    "koa-session": "^6.4.0",
+    "koa-static": "^5.0.0",
+    "mongoose": "^9.0.1"
+  },
+  "devDependencies": {
+    "pm2": "^5.3.0"
+  },
+  "keywords": [
+    "orihost",
+    "axios",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT"
+}
