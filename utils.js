@@ -83,27 +83,27 @@ async function loadEncryptedCookies() {
 
     // If no accounts in database, check for legacy encrypted file
     if (accounts.length === 0) {
-      const encryptedPath = path.join(__dirname, 'cookie.json.enc');
+    const encryptedPath = path.join(__dirname, 'cookie.json.enc');
 
-      // Check for plain text cookie files (cookie.txt, cookie.md, etc.)
-      const extensions = ['txt', 'md', 'cookie'];
-      let plainCookieString = null;
-      let plainTextPath = null;
+    // Check for plain text cookie files (cookie.txt, cookie.md, etc.)
+    const extensions = ['txt', 'md', 'cookie'];
+    let plainCookieString = null;
+    let plainTextPath = null;
 
-      for (const ext of extensions) {
-        plainTextPath = path.join(__dirname, `cookie.${ext}`);
-        if (fs.existsSync(plainTextPath)) {
-          plainCookieString = fs.readFileSync(plainTextPath, 'utf8').trim();
+    for (const ext of extensions) {
+      plainTextPath = path.join(__dirname, `cookie.${ext}`);
+      if (fs.existsSync(plainTextPath)) {
+        plainCookieString = fs.readFileSync(plainTextPath, 'utf8').trim();
           logUtils(`Found cookie.${ext}, migrating to database...`);
-          break;
-        }
+        break;
       }
+    }
 
       // If we found a plain cookie string, convert and save to database
-      if (plainCookieString && plainTextPath) {
-        const cookieObj = parseCookieString(plainCookieString);
+    if (plainCookieString && plainTextPath) {
+      const cookieObj = parseCookieString(plainCookieString);
         const accountData = {
-          id: 'account1',
+        id: 'account1',
           name: 'Migrated Account',
           cookies: cookieObj,
           webhook: '',
@@ -111,30 +111,30 @@ async function loadEncryptedCookies() {
         };
 
         await database.createAccount(accountData);
-        fs.unlinkSync(plainTextPath); // Remove plain file for security
+      fs.unlinkSync(plainTextPath); // Remove plain file for security
         logUtils('✅ Cookies migrated to database and secured');
         return [accountData];
-      }
+    }
 
       // Check for legacy encrypted file
       if (fs.existsSync(encryptedPath)) {
         try {
-          const encryptedData = fs.readFileSync(encryptedPath, 'utf8');
-          const decryptedData = decode(encryptedData);
+    const encryptedData = fs.readFileSync(encryptedPath, 'utf8');
+    const decryptedData = decode(encryptedData);
 
           let accountsToMigrate = [];
 
           // Handle legacy formats and migrate to database
-          if (typeof decryptedData === 'string') {
-            const cookieObj = parseCookieString(decryptedData);
+    if (typeof decryptedData === 'string') {
+      const cookieObj = parseCookieString(decryptedData);
             accountsToMigrate = [{
-              id: 'account1',
+        id: 'account1',
               name: 'Legacy Account',
               cookies: cookieObj,
               webhook: '',
               isAdmin: false
-            }];
-          } else if (Array.isArray(decryptedData)) {
+      }];
+    } else if (Array.isArray(decryptedData)) {
             accountsToMigrate = decryptedData.map((acc, index) => ({
               id: acc.id || `account${index + 1}`,
               name: acc.name || `Account ${index + 1}`,
@@ -142,9 +142,9 @@ async function loadEncryptedCookies() {
               webhook: acc.webhook || '',
               isAdmin: acc.isAdmin || false
             }));
-          } else if (typeof decryptedData === 'object' && decryptedData !== null) {
+    } else if (typeof decryptedData === 'object' && decryptedData !== null) {
             accountsToMigrate = [{
-              id: 'account1',
+        id: 'account1',
               name: 'Legacy Account',
               cookies: decryptedData,
               webhook: '',

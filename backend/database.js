@@ -70,14 +70,27 @@ class DatabaseManager {
 
     try {
       const accounts = await Account.find({});
-      // Decrypt cookies for MongoDB accounts
-      return accounts.map(acc => {
-        const account = acc.toObject();
-        return {
-          ...account,
-          cookies: account.cookies ? decode(account.cookies) : {}
-        };
-      });
+      // Decrypt cookies for MongoDB accounts, skip corrupted ones
+      const validAccounts = [];
+      for (const acc of accounts) {
+        try {
+          const account = acc.toObject();
+          const decryptedCookies = account.cookies ? decode(account.cookies) : {};
+          validAccounts.push({
+            ...account,
+            cookies: decryptedCookies
+          });
+        } catch (decodeError) {
+          console.warn(`⚠️  Skipping corrupted account ${acc.id}: ${decodeError.message}`);
+          // Try to salvage account without cookies
+          const account = acc.toObject();
+          validAccounts.push({
+            ...account,
+            cookies: {} // Empty cookies for corrupted account
+          });
+        }
+      }
+      return validAccounts;
     } catch (error) {
       console.error('Error fetching accounts from MongoDB:', error);
       const accounts = this._readLocalAccounts();
@@ -243,13 +256,21 @@ class DatabaseManager {
       if (this.useLocalStorage) return; // Already using local storage
 
       const accounts = await this.getAllAccounts();
-      const encryptedAccounts = accounts.map(account => ({
-        ...account,
-        cookies: account.cookies ? encode(account.cookies) : {}
-      }));
+      const encryptedAccounts = [];
+      for (const account of accounts) {
+        try {
+          encryptedAccounts.push({
+            ...account,
+            cookies: account.cookies ? encode(account.cookies) : {}
+          });
+        } catch (encodeError) {
+          console.warn(`⚠️  Skipping account ${account.id} during sync: ${encodeError.message}`);
+          // Skip corrupted accounts during sync
+        }
+      }
 
       this._writeLocalAccounts(encryptedAccounts);
-      console.log(`✅ Synced ${accounts.length} accounts to local file for worker access`);
+      console.log(`✅ Synced ${encryptedAccounts.length} accounts to local file for worker access`);
     } catch (error) {
       console.error('Error syncing to local file:', error);
     }

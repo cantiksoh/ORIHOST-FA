@@ -9,57 +9,86 @@ function generateUUID() {
   });
 }
 
-// Determine secure env path (hidden/system location)
-const getEnvPath = () => {
-  const homeDir = process.env.USERPROFILE || process.env.HOME;
-  const appData = process.env.APPDATA;
-  // Use appdata on Windows, home on others
-  const secureDir = appData || homeDir;
+// Initialize encryption key with deployment-friendly approach
+function initializeEncryptionKey() {
+  let key = process.env.ORI_KEY;
 
-  if (!secureDir) {
-    throw new Error('Could not determine secure directory path');
+  // First priority: Environment variable (for deployments like Render, Vercel)
+  if (key) {
+    console.log('🔑 Using ORI_KEY from environment variable');
+    if (key.length !== 64) {
+      throw new Error(`ORI_KEY must be 64 hex characters, got ${key.length}`);
+    }
+    return key;
   }
 
-  const envPath = require('path').join(secureDir, '.orihost-key');
-  return envPath;
-};
+  // Second priority: File system (for local development)
+  try {
+    const fs = require('fs');
+    const path = require('path');
 
-// Generate random key and UUID if not exists
-const fs = require('fs');
-const path = require('path');
-const ENV_PATH = getEnvPath();
+    // Determine secure env path (hidden/system location)
+    const homeDir = process.env.USERPROFILE || process.env.HOME;
+    const appData = process.env.APPDATA;
+    const secureDir = appData || homeDir;
 
-if (!fs.existsSync(ENV_PATH)) {
+    if (secureDir) {
+      const envPath = path.join(secureDir, '.orihost-key');
+
+      // Try to load from file
+      if (fs.existsSync(envPath)) {
+        require('dotenv').config({ path: envPath });
+        key = process.env.ORI_KEY;
+
+        if (key) {
+          console.log('🔑 Using ORI_KEY from file system');
+          if (key.length !== 64) {
+            throw new Error(`ORI_KEY must be 64 hex characters, got ${key.length}`);
+          }
+          return key;
+        }
+      }
+
+      // File doesn't exist, create it for local development
+      console.log('🔑 No ORI_KEY found, generating new key for local development...');
+      const randomBytes = require('crypto').randomBytes(32);
+      key = randomBytes.toString('hex');
+      const farmerUUID = generateUUID();
+
+      // Ensure directory exists
+      const envDir = path.dirname(envPath);
+      if (!fs.existsSync(envDir)) {
+        fs.mkdirSync(envDir, { recursive: true });
+      }
+
+      fs.writeFileSync(envPath, `ORI_KEY=${key}\nORIFARM_UUID=${farmerUUID}\n`, 'utf8');
+      console.log('✅ Key saved to local file for development');
+      return key;
+    }
+  } catch (error) {
+    console.warn('⚠️  File system not available (expected in serverless deployments)');
+  }
+
+  // Third priority: Generate temporary key (for serverless deployments)
+  console.log('🔑 Generating temporary key (will change on restart - set ORI_KEY env var for persistence)');
+  console.log('⚠️  WARNING: Data will be lost on app restart! Set ORI_KEY environment variable.');
+
   // Generate 32 bytes (256 bits) and convert to hex
   const randomBytes = require('crypto').randomBytes(32);
-  const randomKey = randomBytes.toString('hex');
-  const farmerUUID = generateUUID();
+  key = randomBytes.toString('hex');
 
-  // Ensure directory exists
-  const envDir = path.dirname(ENV_PATH);
-  if (!fs.existsSync(envDir)) {
-    fs.mkdirSync(envDir, { recursive: true });
-  }
+  // In production deployments, you should set this as an environment variable
+  // For now, we'll log it so the user can set it
+  console.log('⚠️  GENERATED NEW ENCRYPTION KEY - SET THIS AS ENVIRONMENT VARIABLE:');
+  console.log(`   ORI_KEY=${key}`);
+  console.log('   Add this to your deployment environment variables for data persistence!\n');
 
-  fs.writeFileSync(ENV_PATH, `ORI_KEY=${randomKey}\nORIFARM_UUID=${farmerUUID}\n`, 'utf8');
+  return key;
 }
 
-// Load environment variables
-require('dotenv').config({ path: ENV_PATH });
-
-// Get encryption key
+// Get encryption key (initialize if needed)
 function getKey() {
-  const key = process.env.ORI_KEY;
-  if (!key) {
-    throw new Error('ORI_KEY not found. Delete .orihost-key file and restart.');
-  }
-
-  // Ensure key is exactly 64 characters (32 bytes hex)
-  if (key.length !== 64) {
-    throw new Error(`ORI_KEY must be 64 hex characters, got ${key.length}`);
-  }
-
-  return key; // Return raw hex string, CryptoJS can handle it
+  return initializeEncryptionKey();
 }
 
 // Encrypt data with single encryption (for testing)
@@ -78,15 +107,21 @@ function encode(data) {
 function decode(encryptedData) {
   try {
     const key = getKey();
+    console.log('Attempting to decode data, length:', encryptedData.length);
+
     const decrypted = CryptoJS.AES.decrypt(encryptedData, key);
     const decryptedStr = decrypted.toString(CryptoJS.enc.Utf8);
 
     if (!decryptedStr) {
+      console.log('Decryption produced empty result, data might be corrupted or encrypted with different key');
       throw new Error('Decryption failed - empty result');
     }
 
+    console.log('Decryption successful, attempting JSON parse...');
     return JSON.parse(decryptedStr);
   } catch (error) {
+    console.error('Decode error details:', error.message);
+    console.error('This might indicate data was encrypted with a different key or is corrupted');
     throw new Error(`Decode failed: ${error.message}`);
   }
 }

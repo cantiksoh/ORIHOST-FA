@@ -62,10 +62,10 @@ async function initializeDatabase() {
     databaseConnected = true;
 
     // Load accounts from database (with fallback to legacy loading)
-    try {
+try {
       allAccounts = await database.getAllAccounts();
-      if (!Array.isArray(allAccounts)) {
-        allAccounts = [];
+  if (!Array.isArray(allAccounts)) {
+    allAccounts = [];
         // Fallback to legacy loading if database is empty
         const legacyAccounts = await loadEncryptedCookies();
         if (Array.isArray(legacyAccounts) && legacyAccounts.length > 0) {
@@ -83,21 +83,21 @@ async function initializeDatabase() {
       if (!Array.isArray(allAccounts)) {
         allAccounts = [];
       }
-    }
+  }
 
-    // Migrate old accounts to new format if needed
-    allAccounts = allAccounts.map(account => {
-      if (!account.name) {
-        account.name = `Account ${account.id}`;
-      }
-      if (!account.webhook) {
-        account.webhook = '';
-      }
-      if (typeof account.isAdmin !== 'boolean') {
-        account.isAdmin = false;
-      }
-      return account;
-    });
+  // Migrate old accounts to new format if needed
+  allAccounts = allAccounts.map(account => {
+    if (!account.name) {
+      account.name = `Account ${account.id}`;
+    }
+    if (!account.webhook) {
+      account.webhook = '';
+    }
+    if (typeof account.isAdmin !== 'boolean') {
+      account.isAdmin = false;
+    }
+    return account;
+  });
 
     // Sync database accounts to local file for worker access
     if (databaseConnected && !database.useLocalStorage) {
@@ -114,9 +114,9 @@ async function initializeDatabase() {
 
     const storageType = database.isUsingMongoDB() ? 'MongoDB' : 'Local File';
     logMaster(`✅ Loaded ${allAccounts.length} account(s) from ${storageType}: ${allAccounts.map(acc => acc.name).join(', ')}`);
-  } catch (error) {
-    logMaster(`❌ Error loading accounts: ${error.message}`);
-    allAccounts = [];
+} catch (error) {
+  logMaster(`❌ Error loading accounts: ${error.message}`);
+  allAccounts = [];
   }
 }
 
@@ -129,20 +129,20 @@ const state = {
 
 // Function to initialize state for accounts (called after database is loaded)
 function initializeAccountStates() {
-  allAccounts.forEach(account => {
+allAccounts.forEach(account => {
     if (!state.accounts[account.id]) {
-      state.accounts[account.id] = {
-        lastInfo: null,
-        lastEarn: null,
-        lastError: null,
-        lastBalance: null,
-        restarts: 0,
-        sessionStatus: 'unknown', // 'valid', 'expired', 'refreshing', 'unknown'
-        lastSessionRefresh: null,
-        worker: null
-      };
+  state.accounts[account.id] = {
+    lastInfo: null,
+    lastEarn: null,
+    lastError: null,
+    lastBalance: null,
+    restarts: 0,
+    sessionStatus: 'unknown', // 'valid', 'expired', 'refreshing', 'unknown'
+    lastSessionRefresh: null,
+    worker: null
+  };
     }
-  });
+});
 }
 
 // Authentication setup
@@ -1033,15 +1033,15 @@ async function startServer() {
   try {
     await initializeDatabase();
 
-    const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-    app.listen(port, () => {
+const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+app.listen(port, () => {
       const storageType = databaseConnected ? (database.isUsingMongoDB() ? 'MongoDB' : 'Local File') : 'Local File';
-      logMaster(`🌐 Orihost Farmer listening on http://localhost:${port}`);
-      logMaster(`🔐 Admin panel available at http://localhost:${port}/`);
+  logMaster(`🌐 Orihost Farmer listening on http://localhost:${port}`);
+  logMaster(`🔐 Admin panel available at http://localhost:${port}/`);
       logMaster(`💾 Using ${storageType} storage`);
-    });
+});
 
-    startAllWorkers();
+startAllWorkers();
   } catch (error) {
     logMaster(`❌ Failed to start server: ${error.message}`);
     process.exit(1);
