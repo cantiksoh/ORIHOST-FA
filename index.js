@@ -852,6 +852,17 @@ router.post('/api/accounts', requireAuth, async (ctx) => {
     return;
   }
 
+  // Test webhook if provided
+  if (webhook) {
+    const { testWebhook } = require('./utils');
+    const webhookValid = await testWebhook(webhook);
+    if (!webhookValid) {
+      ctx.status = 400;
+      ctx.body = { error: 'Invalid webhook URL. Please check the URL and try again.' };
+      return;
+    }
+  }
+
   try {
     // Generate unique ID
     const accountId = generateAccountId();
@@ -907,6 +918,17 @@ router.put('/api/accounts/:id', requireAuth, async (ctx) => {
     ctx.status = 400;
     ctx.body = { error: 'Account name and cookies are required' };
     return;
+  }
+
+  // Test webhook if provided
+  if (webhook) {
+    const { testWebhook } = require('./utils');
+    const webhookValid = await testWebhook(webhook);
+    if (!webhookValid) {
+      ctx.status = 400;
+      ctx.body = { error: 'Invalid webhook URL. Please check the URL and try again.' };
+      return;
+    }
   }
 
   try {

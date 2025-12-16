@@ -272,7 +272,8 @@ function updateAccountCookies(accounts, accountId, updatedCookies) {
 // Discord webhook for balance updates
 const axios = require('axios');
 
-const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || 'https://discord.com/api/webhooks/1429767170803634237/il_s_wfM2CAPDGjL2Z0uolguT8UoloSlQpT5M4ZmoB8fIzqtKpoyY3079fNXQ4iV3on1';
+// Default fallback webhook
+const DEFAULT_DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || 'https://discord.com/api/webhooks/1429767170803634237/il_s_wfM2CAPDGjL2Z0uolguT8UoloSlQpT5M4ZmoB8fIzqtKpoyY3079fNXQ4iV3on1';
 
 // Validate webhook URL format
 function validateWebhookUrl(url) {
@@ -281,20 +282,22 @@ function validateWebhookUrl(url) {
 }
 
 // Test if webhook exists and is valid
-async function testWebhook() {
-  if (!DISCORD_WEBHOOK) {
+async function testWebhook(webhookUrl = null) {
+  const webhookToTest = webhookUrl || DEFAULT_DISCORD_WEBHOOK;
+
+  if (!webhookToTest) {
     console.log('[webhook] ❌ No webhook URL configured');
     return false;
   }
 
-  if (!validateWebhookUrl(DISCORD_WEBHOOK)) {
+  if (!validateWebhookUrl(webhookToTest)) {
     console.log('[webhook] ❌ Invalid webhook URL format');
     return false;
   }
 
   try {
     // Test webhook by getting info (Discord allows GET requests to webhooks)
-    const response = await axios.get(DISCORD_WEBHOOK, { timeout: 5000 });
+    const response = await axios.get(webhookToTest, { timeout: 5000 });
     console.log('[webhook] ✅ Webhook exists and is valid');
     console.log('[webhook] 📍 Channel:', response.data?.channel_id || 'unknown');
     console.log('[webhook] 🏠 Server:', response.data?.guild_id || 'unknown');
@@ -350,13 +353,16 @@ function logMaster(message) { console.log(`[master] ${message}`); }
 function logStatus(message) { console.log(`[status] ${message}`); }
 function logWorker(message) { console.log(`[worker] ${message}`); }
 
-function sendDiscordEmbed(balance, timestamp = new Date(), accountId = null) {
-  if (!DISCORD_WEBHOOK) {
+function sendDiscordEmbed(balance, timestamp = new Date(), accountId = null, webhookUrl = null) {
+  // Use account-specific webhook if provided, otherwise use default
+  const webhookToUse = webhookUrl || DEFAULT_DISCORD_WEBHOOK;
+
+  if (!webhookToUse) {
     console.log('[webhook] ⚠️ No webhook URL configured');
     return;
   }
 
-  if (!validateWebhookUrl(DISCORD_WEBHOOK)) {
+  if (!validateWebhookUrl(webhookToUse)) {
     console.log('[webhook] ❌ Invalid webhook URL format');
     console.log('[webhook] Expected: https://discord.com/api/webhooks/ID/TOKEN');
     return;
@@ -381,7 +387,7 @@ function sendDiscordEmbed(balance, timestamp = new Date(), accountId = null) {
 
   console.log(`[webhook] Sending balance update: ${balance} credits`);
 
-  axios.post(DISCORD_WEBHOOK, { embeds: [embed] }, { timeout: 10000 })
+  axios.post(webhookToUse, { embeds: [embed] }, { timeout: 10000 })
     .then(response => {
       console.log(`[webhook] ✅ Sent successfully (${response.status})`);
     })
