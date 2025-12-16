@@ -61,9 +61,28 @@ async function initializeDatabase() {
     await database.connect();
     databaseConnected = true;
 
-    allAccounts = await loadEncryptedCookies();
-    if (!Array.isArray(allAccounts)) {
-      allAccounts = [];
+    // Load accounts from database (with fallback to legacy loading)
+    try {
+      allAccounts = await database.getAllAccounts();
+      if (!Array.isArray(allAccounts)) {
+        allAccounts = [];
+        // Fallback to legacy loading if database is empty
+        const legacyAccounts = await loadEncryptedCookies();
+        if (Array.isArray(legacyAccounts) && legacyAccounts.length > 0) {
+          logMaster(`📋 Migrating ${legacyAccounts.length} legacy accounts to database...`);
+          for (const account of legacyAccounts) {
+            await database.createAccount(account);
+          }
+          allAccounts = await database.getAllAccounts();
+        }
+      }
+    } catch (error) {
+      logMaster(`❌ Error loading accounts from database: ${error.message}`);
+      // Final fallback to legacy loading
+      allAccounts = await loadEncryptedCookies();
+      if (!Array.isArray(allAccounts)) {
+        allAccounts = [];
+      }
     }
 
     // Migrate old accounts to new format if needed
@@ -79,6 +98,11 @@ async function initializeDatabase() {
       }
       return account;
     });
+
+    // Sync database accounts to local file for worker access
+    if (databaseConnected && !database.useLocalStorage) {
+      await database._syncToLocalFile();
+    }
 
     // Save migrated format back to database
     if (allAccounts.length > 0) {

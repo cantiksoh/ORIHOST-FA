@@ -140,6 +140,8 @@ class DatabaseManager {
     try {
       const account = new Account(accountToSave);
       await account.save();
+      // Sync to local file for worker access
+      await this._syncToLocalFile();
       // Return decrypted version
       return account.toObject();
     } catch (error) {
@@ -183,6 +185,8 @@ class DatabaseManager {
         { new: true }
       );
       if (account) {
+        // Sync to local file for worker access
+        await this._syncToLocalFile();
         const accountObj = account.toObject();
         return {
           ...accountObj,
@@ -217,8 +221,12 @@ class DatabaseManager {
     }
 
     try {
-      await Account.findOneAndDelete({ id });
-      return true;
+      const result = await Account.findOneAndDelete({ id });
+      if (result) {
+        // Sync to local file for worker access
+        await this._syncToLocalFile();
+      }
+      return !!result;
     } catch (error) {
       console.error('Error deleting account from MongoDB:', error);
       // Fallback to local storage
@@ -226,6 +234,24 @@ class DatabaseManager {
       const filteredAccounts = accounts.filter(acc => acc.id !== id);
       this._writeLocalAccounts(filteredAccounts);
       return true;
+    }
+  }
+
+  // Sync database accounts to local file for worker access
+  async _syncToLocalFile() {
+    try {
+      if (this.useLocalStorage) return; // Already using local storage
+
+      const accounts = await this.getAllAccounts();
+      const encryptedAccounts = accounts.map(account => ({
+        ...account,
+        cookies: account.cookies ? encode(account.cookies) : {}
+      }));
+
+      this._writeLocalAccounts(encryptedAccounts);
+      console.log(`✅ Synced ${accounts.length} accounts to local file for worker access`);
+    } catch (error) {
+      console.error('Error syncing to local file:', error);
     }
   }
 
