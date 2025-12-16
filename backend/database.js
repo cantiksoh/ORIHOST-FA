@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+
+// Disable buffering for faster error feedback
+mongoose.set('bufferCommands', false);
 const { encode, decode } = require('./crypto');
 
 // Local file storage fallback
@@ -16,6 +19,9 @@ const AccountSchema = new mongoose.Schema({
   isAdmin: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
+}, {
+  bufferCommands: false, // Disable buffering for this schema
+  autoCreate: false // Disable auto-creation since buffering is disabled
 });
 
 const Account = mongoose.model('Account', AccountSchema);
@@ -38,12 +44,8 @@ class DatabaseManager {
         return;
       }
 
-      await mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-        socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-        bufferCommands: false, // Disable mongoose buffering
-        bufferMaxEntries: 0, // Disable mongoose buffering
-      });
+      // For mongoose 8+, use simple connection
+      await mongoose.connect(mongoUri);
 
       this.isConnected = true;
       console.log('✅ Connected to MongoDB');

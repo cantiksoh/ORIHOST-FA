@@ -11,6 +11,7 @@
     "encrypt": "node encrypt-cookies.js",
     "security": "node prebuild-security.js",
     "test-webhook": "node test-webhook.js",
+    "test:mongo": "node test-mongodb.js",
     "pm2": "pm2 start index.js --name orihost-farmer",
     "pm2-stop": "pm2 stop orihost-farmer",
     "pm2-logs": "pm2 logs orihost-farmer"
