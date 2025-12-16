@@ -473,6 +473,17 @@ app.use(async (ctx, next) => {
 
 // API Routes
 
+// Health check for Render.com
+router.get('/health', async (ctx) => {
+  ctx.body = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    database: databaseConnected ? (database.isUsingMongoDB() ? 'mongodb' : 'local') : 'local',
+    accounts: allAccounts.length
+  };
+});
+
 // Login routes
 router.get('/login', async (ctx) => {
   // Update session activity for CSS/JS access control
